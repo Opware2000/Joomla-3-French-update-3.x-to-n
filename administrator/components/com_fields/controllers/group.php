@@ -11,16 +11,12 @@ defined('_JEXEC') or die;
 use Joomla\Registry\Registry;
 
 /**
- * The Field controller
+ * The Group controller
  *
  * @since  3.7.0
  */
-class FieldsControllerField extends JControllerForm
+class FieldsControllerGroup extends JControllerForm
 {
-	private $internalContext;
-
-	private $component;
-
 	/**
 	 * The prefix to use with controller messages.
 	 *
@@ -28,7 +24,15 @@ class FieldsControllerField extends JControllerForm
 
 	 * @since   3.7.0
 	 */
-	protected $text_prefix = 'COM_FIELDS_FIELD';
+	protected $text_prefix = 'COM_FIELDS_GROUP';
+
+	/**
+	 * The component for which the group applies.
+	 *
+	 * @var    string
+	 * @since   3.7.0
+	 */
+	private $component = '';
 
 	/**
 	 * Class constructor.
@@ -41,9 +45,34 @@ class FieldsControllerField extends JControllerForm
 	{
 		parent::__construct($config);
 
-		$this->internalContext = JFactory::getApplication()->getUserStateFromRequest('com_fields.fields.context', 'context', 'com_content.article', 'CMD');
-		$parts = FieldsHelper::extract($this->internalContext);
-		$this->component = $parts ? $parts[0] : null;
+		$parts = FieldsHelper::extract($this->input->getCmd('context'));
+
+		if ($parts)
+		{
+			$this->component = $parts[0];
+		}
+	}
+
+	/**
+	 * Method to run batch operations.
+	 *
+	 * @param   object  $model  The model.
+	 *
+	 * @return  boolean   True if successful, false otherwise and internal error is set.
+	 *
+	 * @since   3.7.0
+	 */
+	public function batch($model = null)
+	{
+		JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
+
+		// Set the model
+		$model = $this->getModel('Group');
+
+		// Preset the redirect
+		$this->setRedirect('index.php?option=com_fields&view=groups');
+
+		return parent::batch($model);
 	}
 
 	/**
@@ -68,27 +97,27 @@ class FieldsControllerField extends JControllerForm
 	 *
 	 * @return  boolean
 	 *
-	 * @since   1.6
+	 * @since   3.7.0
 	 */
-	protected function allowEdit($data = array(), $key = 'id')
+	protected function allowEdit($data = array(), $key = 'parent_id')
 	{
 		$recordId = (int) isset($data[$key]) ? $data[$key] : 0;
 		$user = JFactory::getUser();
 
-		// Zero record (id:0), return component edit permission by calling parent controller method
+		// Zero record (parent_id:0), return component edit permission by calling parent controller method
 		if (!$recordId)
 		{
 			return parent::allowEdit($data, $key);
 		}
 
 		// Check edit on the record asset (explicit or inherited)
-		if ($user->authorise('core.edit', $this->component . '.field.' . $recordId))
+		if ($user->authorise('core.edit', $this->component . '.fieldgroup.' . $recordId))
 		{
 			return true;
 		}
 
 		// Check edit own on the record asset (explicit or inherited)
-		if ($user->authorise('core.edit.own', $this->component . '.field.' . $recordId))
+		if ($user->authorise('core.edit.own', $this->component . '.fieldgroup.' . $recordId) || $user->authorise('core.edit.own', $this->component))
 		{
 			// Existing record already has an owner, get it
 			$record = $this->getModel()->getItem($recordId);
@@ -103,55 +132,6 @@ class FieldsControllerField extends JControllerForm
 		}
 
 		return false;
-	}
-
-	/**
-	 * Method to run batch operations.
-	 *
-	 * @param   object  $model  The model.
-	 *
-	 * @return  boolean   True if successful, false otherwise and internal error is set.
-	 *
-	 * @since   3.7.0
-	 */
-	public function batch($model = null)
-	{
-		JSession::checkToken() or jexit(JText::_('JINVALID_TOKEN'));
-
-		// Set the model
-		$model = $this->getModel('Field');
-
-		// Preset the redirect
-		$this->setRedirect('index.php?option=com_fields&view=fields&context=' . $this->internalContext);
-
-		return parent::batch($model);
-	}
-
-	/**
-	 * Gets the URL arguments to append to an item redirect.
-	 *
-	 * @param   integer  $recordId  The primary key id for the item.
-	 * @param   string   $urlVar    The name of the URL variable for the id.
-	 *
-	 * @return  string  The arguments to append to the redirect URL.
-	 *
-	 * @since   3.7.0
-	 */
-	protected function getRedirectToItemAppend($recordId = null, $urlVar = 'id')
-	{
-		return parent::getRedirectToItemAppend($recordId) . '&context=' . $this->internalContext;
-	}
-
-	/**
-	 * Gets the URL arguments to append to a list redirect.
-	 *
-	 * @return  string  The arguments to append to the redirect URL.
-	 *
-	 * @since   3.7.0
-	 */
-	protected function getRedirectToListAppend()
-	{
-		return parent::getRedirectToListAppend() . '&context=' . $this->internalContext;
 	}
 
 	/**
